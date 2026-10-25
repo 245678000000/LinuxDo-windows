@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LinuxDo</RootNamespace>
+    <AssemblyName>LinuxDo</AssemblyName>
+    <Version>2.0.0</Version>
+    <Product>LinuxDo</Product>
+    <Description>LinuxDo 社区 Windows 客户端</Description>
+    <ApplicationIcon>Resources\AppIcon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- ThemeMode (Fluent) is still flagged experimental in WPF. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WPF leaves System.IO out of implicit usings; this project does not use System.Windows.Shapes. -->
+    <Using Include="System.IO" />
+    <Resource Include="Resources\AppIcon.ico" />
+    <Content Include="Resources\Preview.html" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

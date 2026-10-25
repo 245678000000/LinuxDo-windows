@@ -1,0 +1,108 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Core tests
+        run: ./build.ps1 test
+
+      - name: WebView2 runtime
+        run: |
+          $keys = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+                  'HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+          $version = $keys | ForEach-Object { (Get-ItemProperty $_ -ErrorAction SilentlyContinue).pv } | Where-Object { $_ } | Select-Object -First 1
+          if (-not $version) {
+            Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile "$env:RUNNER_TEMP\webview2.exe"
+            Start-Process "$env:RUNNER_TEMP\webview2.exe" -ArgumentList '/silent', '/install' -Wait
+            $version = $keys | ForEach-Object { (Get-ItemProperty $_ -ErrorAction SilentlyContinue).pv } | Where-Object { $_ } | Select-Object -First 1
+          }
+          Write-Host "WebView2 runtime: $version"
+
+      - name: Publish
+        run: ./build.ps1 publish -Arch ${{ matrix.arch }}
+
+      - name: Offline self-test
+        run: |
+          $p = Start-Process artifacts/publish/${{ matrix.arch }}/LinuxDo.exe -ArgumentList '--preview', '--self-test' -PassThru
+          $null = $p.Handle
+          if (-not $p.WaitForExit(240000)) { $p.Kill(); throw 'self-test timed out' }
+          Get-Content "$env:TEMP\LinuxDoSelfTest.txt"
+          if ($p.ExitCode -ne 0) { throw "self-test failed with exit code $($p.ExitCode)" }
+
+      - name: Live site screenshot
+        continue-on-error: true
+        run: |
+          New-Item -ItemType Directory -Force "$env:TEMP\LinuxDoSelfTest" | Out-Null
+          $p = Start-Process artifacts/publish/${{ matrix.arch }}/LinuxDo.exe -PassThru
+          Start-Sleep -Seconds 25
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+          $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+          $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+          $bitmap.Save("$env:TEMP\LinuxDoSelfTest\07-live-site.png")
+          Stop-Process -Id $p.Id -Force
+
+      - name: Installer
+        run: ./build.ps1 installer -Arch ${{ matrix.arch }}
+
+      - name: Installer smoke test
+        run: |
+          $setup = Get-ChildItem artifacts/LinuxDo-*-Setup-${{ matrix.arch }}.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER' -Wait
+          $exe = "$env:LOCALAPPDATA\Programs\LinuxDo\LinuxDo.exe"
+          if (-not (Test-Path $exe)) { throw "installer did not place $exe" }
+          Write-Host "installed $((Get-Item $exe).VersionInfo.ProductVersion)"
+          # The uninstaller relaunches itself from %TEMP%, so wait for the files rather than the process.
+          Start-Process "$env:LOCALAPPDATA\Programs\LinuxDo\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          for ($i = 0; $i -lt 60 -and (Test-Path $exe); $i++) { Start-Sleep -Milliseconds 500 }
+          if (Test-Path $exe) { throw 'uninstaller left LinuxDo.exe behind' }
+
+      - name: Collect self-test output
+        if: always()
+        run: |
+          New-Item -ItemType Directory -Force artifacts/selftest | Out-Null
+          Copy-Item "$env:TEMP\LinuxDoSelfTest.txt", "$env:TEMP\LinuxDoSelfTest\*" artifacts/selftest -ErrorAction SilentlyContinue
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: LinuxDo-${{ matrix.arch }}
+          path: |
+            artifacts/LinuxDo-*-Setup-${{ matrix.arch }}.exe
+            artifacts/LinuxDo-*-win-${{ matrix.arch }}.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: selftest-${{ matrix.arch }}
+          path: artifacts/selftest

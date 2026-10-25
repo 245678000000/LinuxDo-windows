@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>(3) LinuxDo 离线界面预览</title>
+<style>
+:root { color-scheme: light dark; --bg: #f7f7f8; --card: #fff; --line: #e3e3e6; --text: #1d1d1f; --muted: #6e6e73; --gold: #b98216; }
+@media (prefers-color-scheme: dark) { :root { --bg: #19191b; --card: #232326; --line: #36363a; --text: #f5f5f7; --muted: #a1a1a6; --gold: #e2ad3b; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif; }
+.d-header { position: sticky; top: 0; height: 58px; display: flex; align-items: center; gap: 14px; padding: 0 24px; background: color-mix(in srgb, var(--card) 90%, transparent); border-bottom: 1px solid var(--line); z-index: 2; }
+.header-sidebar-toggle { border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
+#main-outlet-wrapper { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: calc(100vh - 58px); }
+.sidebar-wrapper { padding: 22px; border-right: 1px solid var(--line); color: var(--muted); }
+main { width: min(860px, 100%); margin: 0 auto; padding: 34px 32px 120px; }
+.label { color: var(--gold); font-size: 12px; font-weight: 600; letter-spacing: .04em; }
+h1 { margin: 8px 0 8px; font-size: 30px; line-height: 1.25; }
+.meta { color: var(--muted); margin-bottom: 26px; }
+.topic { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; margin: 16px 0; }
+.cooked { font-size: 15px; line-height: 1.55; }
+.cooked pre { overflow: auto; padding: 14px; border-radius: 9px; background: color-mix(in srgb, var(--text) 7%, transparent); }
+a { color: var(--gold); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0; }
+button, .button { font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px; text-decoration: none; }
+textarea { width: 100%; min-height: 96px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--text); padding: 12px; font: inherit; }
+@media (max-width: 760px) { #main-outlet-wrapper { grid-template-columns: 1fr; } .sidebar-wrapper { display: none; } main { padding: 24px 20px 100px; } }
+</style>
+</head>
+<body class="has-sidebar-page">
+<header class="d-header"><span class="header-sidebar-toggle">网页侧栏</span><strong>LINUX DO</strong><span style="color:var(--muted)">离线界面样例</span></header>
+<div id="main-outlet-wrapper">
+<aside class="sidebar-wrapper">网页自带侧栏（原生侧栏开启时应隐藏）</aside>
+<main>
+<div class="label" id="route-label">离线预览</div>
+<h1 id="route-title">原生阅读体验预览</h1>
+<div class="meta">本页面仅用于验收窗口、阅读样式和交互，不连接 linux.do。</div>
+<div class="actions">
+<a class="button" href="Preview.html?route=/top">热门路线</a>
+<a class="button" id="download-link" download="LinuxDo 离线样例.txt" href="data:text/plain;charset=utf-8,LinuxDo%20offline%20download%20fixture">下载样例</a>
+<button id="long-button" onclick="scrollTo(0, 1800)">跳到中段</button>
+</div>
+<section class="topic" data-post-id="1"><div class="cooked"><p>这是一个离线话题正文。用于检查 Windows 字体、行高、窗口宽度变化和 Fluent 工具栏下方的阅读舒适度。</p><p>页内查找关键词：<mark>玻璃阅读样例</mark>。</p><pre><code>await webView.EnsureCoreWebView2Async(environment);
+webView.CoreWebView2.Navigate("https://linux.do/latest");</code></pre></div></section>
+<section class="topic"><label for="draft">回复草稿样例</label><textarea id="draft" data-linuxdo-draft placeholder="输入内容后再切换页面，应弹出原生提示"></textarea></section>
+<div id="posts"></div>
+</main></div>
+<script>
+const params = new URLSearchParams(location.search);
+const route = params.get('route') || '/latest';
+const q = params.get('q');
+const names = {'/latest':'最新话题','/top':'热门话题','/categories':'分类','/unread':'未读','/new':'新话题','/my/bookmarks':'收藏','/my/notifications':'通知','/my/activity':'我的动态','/search':'搜索结果'};
+document.getElementById('route-label').textContent = route;
+document.getElementById('route-title').textContent = q ? `搜索：${q}` : (names[route] || '原生阅读体验预览');
+const posts = document.getElementById('posts');
+for (let i = 2; i <= 34; i++) {
+  const s = document.createElement('section'); s.className = 'topic'; s.dataset.postId = String(i);
+  s.innerHTML = `<div class="cooked"><strong>楼层 ${i}</strong><p>离线长文样例 ${i}。这里用于验证滚动位置、楼层锚点、窄窗口换行和深浅色外观。为了模拟真实论坛阅读，本段保留较长中文内容，让行宽、段距与系统字体都能被观察。</p></div>`;
+  posts.appendChild(s);
+}
+</script>
+</body>
+</html>

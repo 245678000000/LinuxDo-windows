@@ -1,0 +1,25 @@
+# Build products
+bin/
+obj/
+artifacts/
+*.user
+*.suo
+.vs/
+.idea/
+.vscode/
+
+# macOS and editor metadata
+.DS_Store
+._*
+
+# Local configuration, account state and credentials
+.env
+.env.*
+*.pfx
+*.p12
+*.key
+*.log
+.codex/
+.kiro/
+.agents/
+.claude/
